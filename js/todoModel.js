@@ -1,0 +1,106 @@
+/*jshint quotmark:false */
+/*jshint white:false */
+/*jshint trailing:false */
+/*jshint newcap:false */
+var app = app || {};
+
+(function () {
+	'use strict';
+
+	var Utils = app.Utils;
+	// Generic "model" object. You can use whatever
+	// framework you want. For this application it
+	// may not even be worth separating this logic
+	// out, but we do this to demonstrate one way to
+	// separate out parts of your application.
+	app.TodoModel = function (key) {
+		this.key = key;
+		this.todos = Utils.store(key);
+		this.coloredTodos = Utils.store('color-todos');
+		this.todo = {};
+		this.onChanges = [];
+	};
+
+	app.TodoModel.prototype.subscribe = function (onChange) {
+		this.onChanges.push(onChange);
+	};
+
+	app.TodoModel.prototype.inform = function () {
+		Utils.store(this.key, this.todos);
+		Utils.store('color-todos', this.coloredTodos);
+		this.onChanges.forEach(function (cb) { cb(); });
+	};
+
+	app.TodoModel.prototype.addTodo = function (title) {
+		const todo = {
+			id: Utils.uuid(),
+			title: title,
+			completed: false,
+			color: 'red',
+			activityTime: new Date(),
+			completedTime: '',
+			state: undefined
+		}
+		this.todos = this.todos.concat(todo);
+		this.todo  = todo;
+		this.inform();
+	};
+
+	app.TodoModel.prototype.toggleAll = function (checked) {
+		// Note: it's usually better to use immutable data structures since they're
+		// easier to reason about and React works very well with them. That's why
+		// we use map() and filter() everywhere instead of mutating the array or
+		// todo items themselves.
+		this.todos = this.todos.map(function (todo) {
+			return Utils.extend({}, todo, {completed: checked});
+		});
+
+		this.inform();
+	};
+
+	app.TodoModel.prototype.toggle = function (todoToToggle) {
+		
+		this.todos = this.todos.map(function (todo) {
+			if (todo.state === 3) {
+				todo.state = 0;
+			}
+			if (todo.state === 2) {
+				todo.state = 3;
+			}
+			if (todo.state === 1) {
+				todo.state = 2;
+			}
+
+			return todo !== todoToToggle ?
+				todo :
+				Utils.extend({}, todo, {completed: !todo.completed, completedTime: new Date(), state: 1});
+		});
+
+		this.inform();
+	};
+
+	app.TodoModel.prototype.destroy = function (todo) {
+		this.todos = this.todos.filter(function (candidate) {
+			return candidate !== todo;
+		});
+
+		this.inform();
+	};
+
+	app.TodoModel.prototype.save = function (todoToSave, text, color, state) {
+		this.todos = this.todos.map(function (todo) {
+			return todo !== todoToSave ? todo : Utils.extend({}, todo, {title: text, color: color, state: state});
+		});
+
+		this.inform();
+	};
+
+	app.TodoModel.prototype.clearCompleted = function () {
+		this.todos = this.todos.filter(function (todo) {
+			return !todo.completed;
+		});
+
+		this.inform();
+	};
+
+})();
